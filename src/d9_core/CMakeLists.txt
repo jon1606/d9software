@@ -8,11 +8,13 @@ set(D9_CORE_SOURCES
   src/angles.cpp
   src/geometry.cpp
   src/drive.cpp
+  src/line_follow.cpp
 )
 set(D9_CORE_TESTS
   test/test_angles.cpp
   test/test_geometry.cpp
   test/test_drive.cpp
+  test/test_line_follow.cpp
 )
 
 add_library(d9_core STATIC ${D9_CORE_SOURCES})
