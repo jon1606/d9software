@@ -10,6 +10,7 @@ set(D9_CORE_SOURCES
   src/drive.cpp
   src/line_follow.cpp
   src/arrival.cpp
+  src/go_to_point.cpp
 )
 set(D9_CORE_TESTS
   test/test_angles.cpp
@@ -17,6 +18,7 @@ set(D9_CORE_TESTS
   test/test_drive.cpp
   test/test_line_follow.cpp
   test/test_arrival.cpp
+  test/test_go_to_point.cpp
 )
 
 add_library(d9_core STATIC ${D9_CORE_SOURCES})
