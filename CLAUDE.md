@@ -7,11 +7,21 @@ detects a red LED "enemy" and reports it, and reports its position every 30 s.
 Development follows "option C": logic is built and tested in ROS 2 on a laptop,
 then ported to an ESP32. Full requirements: `docs/SPEC.md` (read it before
 starting a new feature; do not import it here, it is too long for every session).
+Its **Amendments** section (end of file) overrides the original text where they conflict.
 
 ## Commands
 
 ```bash
-# Environment (Ubuntu 24.04 / WSL2, ROS 2 Jazzy)
+# macOS: everything ROS runs in Docker (ROS 2 Jazzy, Ubuntu 24.04), repo mounted at /ws
+docker compose build                        # once, and after docker/Dockerfile changes
+scripts/dev.sh "colcon build --symlink-install"
+scripts/dev.sh "colcon test --packages-select d9_core && colcon test-result --verbose"
+docker compose exec dev bash -l             # interactive shell (after any scripts/dev.sh call)
+
+# d9_core without ROS (plain CMake + FetchContent GoogleTest; needs cmake on the host)
+cmake -S src/d9_core -B build/host && cmake --build build/host && ctest --test-dir build/host --output-on-failure
+
+# Inside the container, or natively on Ubuntu 24.04 / WSL2 with ROS 2 Jazzy:
 source /opt/ros/jazzy/setup.bash
 
 # Build everything (run from repo root = the workspace)
@@ -48,7 +58,8 @@ src/
   d9_fakes/       Stand-ins for other teams: fake_server, fake_drone, fake_hq
   d9_sim/         Gazebo world, D9 + APC models, launch files
 firmware/         PlatformIO ESP32 project; lib/d9_core is a symlink to src/d9_core
-docs/SPEC.md      Software specification (source of truth for requirements)
+docs/SPEC.md      Software specification (source of truth for requirements); docs/spec.pdf original
+docker/, compose.yaml, scripts/dev.sh   ROS 2 Jazzy dev container
 ```
 
 ## Architecture rules
@@ -64,6 +75,10 @@ arguments or goes through an interface defined in `d9_core/include/d9_core/ports
 - One task (clear or tow) runs at a time. A new command while busy → ack with `busy`, ignore it.
 - Enemy detection is NOT a task. It runs every cycle in parallel with the active task.
 - Each task state has a timeout. On timeout: stop motors, end task, publish failed `done`.
+- Navigation on the road (FR-1, amendment A1): steer by the white road line (`LineFollower`),
+  decide arrival from drone fixes (`ArrivalMonitor`); `GoToPoint` combines them. The road is a
+  closed loop with sudden curves, so overshooting a target costs a lap. Free-space
+  pivot-then-drive is only for short off-line moves (push, reverse, APC alignment) — M3.
 
 ## Core library constraints (ESP32-compatible)
 
@@ -82,12 +97,17 @@ arguments or goes through an interface defined in `d9_core/include/d9_core/ports
   Never convert units or frames anywhere else.
 - Drone provides x, y only (no heading). Heading = gyro, corrected from drone positions
   while driving straight. Never use a magnetometer (magnet + motors corrupt it).
+- Line reading: `offset` in [-1, 1], positive = line LEFT of centre (so positive = turn CCW,
+  like angles), plus a `detected` flag. Core never sees raw line-sensor values.
+- Drive command: `DriveCommand{left, right}` as fractions of full track speed, positive = forward.
+- Messages in `d9_interfaces` carry the server/drone frame; `d9_core` works in the internal frame.
 
 ## Topics
 
 | Topic                 | Dir | Notes                                     |
 |-----------------------|-----|-------------------------------------------|
 | `/d9/pose`            | in  | x, y from drone (via server), noisy       |
+| `/d9/line`            | in  | internal: line sensor → navigation        |
 | `/d9/cmd/clear`       | in  | target x, y                               |
 | `/d9/cmd/tow`         | in  | APC x, y + safe spot x, y                 |
 | `/d9/cmd/stop`        | in  | always wins, stops motors immediately     |
@@ -141,6 +161,8 @@ at our `enemy` message. Target: < 500 ms from camera frame to publish.
 | Server protocol                 | `bridge` node         | Server team       |
 | Magnet mechanism                | `actuators` (on/off)  | Mechanical team   |
 | LED sensor on the real robot    | `enemy_detect` input  | Our team          |
+| Line sensor on the real robot   | `/d9/line` input node | Our team          |
+| Road: direction, line width, where targets sit | `config.hpp`, `GoToPoint` | Test-field owner |
 | Fields for steps 3 and 4        | not implemented yet   | Tank, drone teams |
 | Bucket / berm building (FR-7)   | not implemented yet   | Mechanical team   |
 
@@ -154,9 +176,14 @@ When a task touches one of these, ask before assuming a value.
 - Do not modify `d9_interfaces` messages without asking: other nodes and fakes depend on them.
 - Do not touch `firmware/` until milestone M5 unless asked.
 - Commits: small, imperative messages. Never commit `build/`, `install/`, `log/`.
+- Always version control: one branch per milestone (`m1-workspace`, `m2-...`), a commit after
+  every step, push after every commit, PR to `main` when the milestone's tests pass.
+  GitHub (`jon1606/d9software`, public) is reached through the GitHub MCP server.
 
 ## Current milestone
 
-M1 — Workspace: packages created, `d9_core` skeleton with `headingFromPoints`,
-`normalizeAngle` and go-to-point decision logic, unit tests passing.
-Next: M2 — go-to-point in Gazebo with fake drone positions and gyro heading.
+M1 — Workspace: done. All 5 packages build; `d9_core` has angles, geometry, the motor clamp,
+`LineFollower`, `ArrivalMonitor` and `GoToPoint`, all unit tested.
+Next: M2 — line-follow to a typed-in target in Gazebo: loop-road world with a white line,
+sim line sensor, `fake_drone` noisy x, y, `navigation` + `actuators` nodes, `coords.hpp`,
+heading fusion, pose watchdog.
