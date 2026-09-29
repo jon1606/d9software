@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>d9_nodes</name>
+  <version>0.1.0</version>
+  <description>
+    Thin ROS 2 wrappers around d9_core: bridge, mission, navigation, enemy_detect,
+    actuators. Read topics, call core, publish results; no decision logic here.
+  </description>
+  <maintainer email="yonathan.transky1@gmail.com">Jonathan</maintainer>
+  <license>TBD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>d9_core</depend>
+  <depend>d9_interfaces</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
