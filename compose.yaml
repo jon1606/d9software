@@ -1,0 +1,9 @@
+services:
+  dev:
+    build: docker
+    image: d9-dev:jazzy
+    volumes:
+      - .:/ws
+    working_dir: /ws
+    init: true
+    command: sleep infinity
