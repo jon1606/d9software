@@ -1,0 +1,13 @@
+# colcon / CMake outputs
+build/
+install/
+log/
+
+# PlatformIO
+.pio/
+
+# Tooling scratch
+.superpowers/
+
+# OS
+.DS_Store
