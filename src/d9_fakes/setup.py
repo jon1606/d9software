@@ -11,6 +11,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
     ],
     install_requires=['setuptools'],
+    extras_require={'test': ['pytest']},
     zip_safe=True,
     maintainer='Jonathan',
     maintainer_email='yonathan.transky1@gmail.com',
